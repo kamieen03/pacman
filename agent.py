@@ -25,8 +25,7 @@ GAMMA = 0.98
 ACTIONS = [Directions.NORTH,
            Directions.EAST,
            Directions.SOUTH,
-           Directions.WEST,
-           Directions.STOP]
+           Directions.WEST]
 ACTION_MAP = {d: idx for (idx, d) in enumerate(ACTIONS)}
 
 class QAgent(Agent):
@@ -55,6 +54,7 @@ class QAgent(Agent):
 
     def getAction(self, game_state):
         legal = game_state.getLegalPacmanActions()
+        if Directions.STOP in legal: legal.remove(Directions.STOP)
         state = self.fex(game_state)
         if not self.training:
             print(state)
@@ -70,7 +70,9 @@ class QAgent(Agent):
             if self.s is not None:
                 reward = game_state.getScore() - self.score
                 reward = process_reward(reward)
-                next_legals = (ACTION_MAP[d] for d in game_state.getLegalActions())
+                next_legals = game_state.getLegalActions()
+                if Directions.STOP in next_legals: next_legals.remove(Directions.STOP)
+                next_legals = (ACTION_MAP[d] for d in next_legals)
                 self.memory.push(self.s, self.a, reward, state, next_legals)
             self.s = state
             self.a = ACTION_MAP[action]
@@ -119,7 +121,7 @@ class QAgent(Agent):
         # replace deaths (None) with zeros
         for i, s in enumerate(next_states):
             if s is None:
-                next_states[i] = torch.zeros((14,)).cuda()
+                next_states[i] = torch.zeros((17,)).cuda()
         next_states = torch.stack(next_states) 
         # get max Q(s',a'); deaths get value 0
         with torch.no_grad():

@@ -10,7 +10,7 @@ class ReplayMemory:
         self.buffer = collections.deque(maxlen=CAPACITY)
 
     def push(self, state, action, reward, next_state, next_legal):
-        if len(self.buffer) > CAPACITY:
+        if len(self.buffer) == CAPACITY:
             self.buffer.pop()
         self.buffer.appendleft((state,action,reward,next_state,next_legal))
     

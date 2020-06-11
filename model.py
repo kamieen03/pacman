@@ -5,11 +5,12 @@ import numpy as np
 class DQN(torch.nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.linear1 = Linear(14,64)
-        self.linear2 = Linear(64,128)
-        self.linear3 = Linear(128,64)
-        self.linear4 = Linear(64,5)
-        self.relu = LeakyReLU(inplace=True)
+        self.linear1 = Linear(17,32)
+        self.linear2 = Linear(32,64)
+        self.linear3 = Linear(64,64)
+        self.linear4 = Linear(64,32)
+        self.linear5 = Linear(32,4)
+        self.relu = LeakyReLU(inplace=False)
     
     def forward(self, state):
         if len(state.shape) == 1:
@@ -22,6 +23,8 @@ class DQN(torch.nn.Module):
         state = self.linear3(state)
         state = self.relu(state)
         state = self.linear4(state)
+        state = self.relu(state)
+        state = self.linear5(state)
 
         state = state.squeeze()
         return state
