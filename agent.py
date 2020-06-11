@@ -67,7 +67,8 @@ class QAgent(Agent):
             if self.s is not None:
                 reward = game_state.getScore() - self.score
                 reward = process_reward(reward)
-                self.memory.push(self.s, self.a, reward, state)
+                next_legals = (ACTION_MAP[d] for d in game_state.getLegalActions())
+                self.memory.push(self.s, self.a, reward, state, next_legals)
             self.s = state
             self.a = ACTION_MAP[action]
             self.score = game_state.getScore()
@@ -77,7 +78,7 @@ class QAgent(Agent):
         if self.training:
             reward = state.getScore() - self.score
             reward = process_reward(reward)
-            self.memory.push(self.s, self.a, reward, None)
+            self.memory.push(self.s, self.a, reward, None, [])
 
 
     def train(self):
@@ -106,25 +107,27 @@ class QAgent(Agent):
 
     def training_iteration(self):
         # sample mini-batch
-        sars = self.memory.sample()
-        if sars is None:
+        sarsl = self.memory.sample()
+        if sarsl is None:
             return
         else:
-            states, actions, rewards, next_states = sars
+            states, actions, rewards, next_states, next_state_legals = sarsl
 
-        # replace deaths (None) with zeros and save death indeces
-        deaths = []
+        # replace deaths (None) with zeros
         for i, s in enumerate(next_states):
             if s is None:
-                deaths.append(i)
-                next_states[i] = torch.zeros((12,)).cuda()
+                next_states[i] = torch.zeros((14,)).cuda()
         next_states = torch.stack(next_states) 
         # get max Q(s',a'); deaths get value 0
         with torch.no_grad():
             next_actions_values = self.net(next_states)
-            for i in deaths:
-                next_actions_values[i] = torch.zeros((5,))
-            best_actions_values = next_actions_values.max(dim=1).values # check
+            best_actions_values = []
+            for next_legals, action_vals in zip(next_state_legals, next_actions_values):
+                legal_vals = [v for (idx,v) in enumerate(action_vals) if idx in next_legals]
+                if legal_vals == []:
+                    legal_vals = [0]
+                best_actions_values.append(max(legal_vals))
+            best_actions_values = torch.tensor(best_actions_values).cuda()
         
             # compute target values
             targets = rewards + GAMMA*best_actions_values
@@ -142,17 +145,7 @@ class QAgent(Agent):
         self.optimizer.step()
 
 def process_reward(rew):
-    if rew == 9:
-        return 1.0
-    elif rew == 199:
-        return 5
-    elif rew == -1:
-        return -0.1
-    elif rew == -501:
-        return -10
-    elif rew == -491:
-        return -10
-    return 0
+    return rew / 50.0
 
 def main():
     agent = QAgent()
