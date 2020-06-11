@@ -9,6 +9,7 @@ from misio.pacman.agents import Agent
 from misio.pacman.keyboardAgents import KeyboardAgent
 from misio.pacman.pacman import LocalPacmanGameRunner
 from misio.pacman.game import Directions
+from misio.pacman.pacman import LocalPacmanGameRunner
 
 from fextractor import Extractor
 from model import DQN
@@ -18,7 +19,7 @@ from utils import load_runners
 EPOCHS = 500
 GAMES_PER_EPOCH = 10
 SAMPLES_PER_GAME = 50
-EPSILON = 0.5
+EPSILON = 0
 GAMMA = 0.98
 
 ACTIONS = [Directions.NORTH,
@@ -55,6 +56,8 @@ class QAgent(Agent):
     def getAction(self, game_state):
         legal = game_state.getLegalPacmanActions()
         state = self.fex(game_state)
+        if not self.training:
+            print(state)
         with torch.no_grad():
             scores = self.net(state)
         scores = list(zip(ACTIONS, scores))
@@ -87,6 +90,7 @@ class QAgent(Agent):
         runners, names = load_runners()
 
         for epoch in range(EPOCHS):
+            EPSILON = (np.cos(epoch*2*np.pi/20)+1)/4+0.01
             print(f'Epoch {epoch} | EPSILON {EPSILON}')
             g_dict = {}
             for runner, name in zip(runners, names):
@@ -101,7 +105,6 @@ class QAgent(Agent):
                 wins = sum([game.state.isWin() for game in games])
                 print(f'{name}: {avg:0.2f} | {wins}/{GAMES_PER_EPOCH}')
             print()
-            EPSILON = (np.cos(epoch*2*np.pi/20)+1)/4+0.01
             torch.save(self.net.state_dict(), 'model.pth')
 
 
@@ -144,14 +147,28 @@ class QAgent(Agent):
         loss.backward()
         self.optimizer.step()
 
+    def play(self, path):
+        runner = LocalPacmanGameRunner(layout_path=path,
+                                       random_ghosts=True,
+                                       show_window=True,
+                                       zoom_window=1.0,
+                                       frame_time=0.1,
+                                       timeout=-1000)
+        game = runner.run_game(self)
+
+
 def process_reward(rew):
     return rew / 50.0
+
 
 def main():
     agent = QAgent()
     if sys.argv[1] in ['t', 'train', '-t', '--train']:
         agent.train()
+    else:
+        agent.play(sys.argv[1])
 
 
 if __name__ == '__main__':
     main()
+
