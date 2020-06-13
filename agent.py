@@ -39,7 +39,7 @@ class QAgent(Agent):
         self.net.cuda()
         self.net.eval()
         self.criterion = torch.nn.MSELoss()
-        self.optimizer = torch.optim.SGD(self.net.parameters(),lr=1e-3)
+        self.optimizer = torch.optim.Adam(self.net.parameters())
         self.memory = ReplayMemory()
         self.training = False
 
@@ -56,8 +56,6 @@ class QAgent(Agent):
         legal = game_state.getLegalPacmanActions()
         if Directions.STOP in legal: legal.remove(Directions.STOP)
         state = self.fex(game_state)
-        if not self.training:
-            print(state)
         with torch.no_grad():
             scores = self.net(state)
         scores = list(zip(ACTIONS, scores))
@@ -121,7 +119,7 @@ class QAgent(Agent):
         # replace deaths (None) with zeros
         for i, s in enumerate(next_states):
             if s is None:
-                next_states[i] = torch.zeros((17,)).cuda()
+                next_states[i] = torch.zeros((22,)).cuda()
         next_states = torch.stack(next_states) 
         # get max Q(s',a'); deaths get value 0
         with torch.no_grad():

@@ -14,111 +14,84 @@
 
 import torch
 from misio.pacman.game import Actions
+from misio.pacman.game import Directions
 
 '''
-ghost_north       tristate: ghost 1 or 2 fields north; 1 if scared else -1
-ghost_east        tristate: ghost 1 or 2 fields east
-ghost_south       tristate: ghost 1 or 2 fields south
-ghost_west        tristate: ghost 1 or 2 fields west
-food_north        bool: food north
-food_east         bool: food east
-food_south        bool: food south
-food_west         bool: food west
+ghost_1
+ghost_2
+ghost_3
+ghost_4
+ghost_5
+ghost_6
+ghost_7
+ghost_8
+ghost_9
+ghost_10
+ghost_11
+ghost_12
 wall_north        bool: wall directly north
 wall_east         bool: wall directly east
 wall_south        bool: wall directly south
 wall_west         bool: wall directly west
-capsule_north     bool: whether there is a capsule 1 or 2 fields around 
-capsule_east      bool: whether there is a capsule 1 or 2 fields around 
-capsule_south     bool: whether there is a capsule 1 or 2 fields around 
-capsule_west      bool: whether there is a capsule 1 or 2 fields around 
-closest_food      int: distance to the closest food
+food_north        bool: food north
+food_east         bool: food east
+food_south        bool: food south
+food_west         bool: food west
+capsule_x_vec
+capsule_y_vec
 '''
+ghost_positions = [(1,1),(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1),(0,2),(0,-2),(2,0),(-2,0)]
+
 class Extractor():
+
     def __call__(self, state):
         ghosts, g_states = state.getGhostPositions(), state.getGhostStates()
         food = state.getFood()
         walls = state.getWalls()
         capsules = state.getCapsules() 
         x, y = state.getPacmanPosition()
-        parsed = torch.zeros((17,), dtype=torch.float32)
+        parsed = torch.zeros((22,), dtype=torch.float32)
 
-        # ghosts
+        # ghosts [0-11]
         for g, s in zip(ghosts, g_states):
             if s.scaredTimer != 0:
                 v = 1
             else:
                 v = -1
-            if g[0] == x:
-                if g[1] - y in [1,2]:
-                    parsed[0] = v
-                elif y - g[1] in [1,2]:
-                    parsed[2] = v
-            elif g[1] == y:
-                if g[0] - x in [1,2]:
-                    parsed[1] = v
-                elif x - g[0] in [1,2]:
-                    parsed[3] = v
+            for idx, gp in enumerate(ghost_positions):
+                if (g[0]-x,g[1]-y) == gp:
+                    parsed[idx] = v
 
-        # food position
-        foods = check_food(parsed,x,y,food)
-        for idx in range(4):
-            parsed[idx+4] = foods[idx]
+        # walls [12-15]
         for idx, (dx, dy) in enumerate([(0,1), (1,0), (0,-1), (-1,0)]):
             if walls[x+dx][y+dy]:
-                parsed[idx+8] = 1
+                parsed[idx+12] = 1
 
-        # capsules position
+        # food position [16-19]
+        for idx in range(16,20):
+            parsed[idx] = 1     #max dist
+        legals = state.getLegalActions()
+        if Directions.NORTH in legals:
+            parsed[16] = closest_food((x,y+1), food, walls) / (food.width*food.height)
+        if Directions.EAST in legals:
+            parsed[17] = closest_food((x+1,y), food, walls) / (food.width*food.height)
+        if Directions.SOUTH in legals:
+            parsed[18] = closest_food((x,y-1), food, walls) / (food.width*food.height)
+        if Directions.WEST in legals:
+            parsed[19] = closest_food((x-1,y), food, walls) / (food.width*food.height)
+
+        # closest capsule position [20-21]
+        cap, min_dist = (x + food.width*food.height, y + food.width*food.height), 1e6
         for c in capsules:
-            if c[1]-y >= 0:
-                parsed[12] = 1
-            if c[0]-x >= 0:
-                parsed[13] = 1
-            if y-c[1] >= 0:
-                parsed[14] = 1
-            if x-c[0] >= 0:
-                parsed[15] = 1
-
-        # food distance
-        parsed[16] = closest_food((x,y), food, walls)/max(walls.height, walls.width)
+            dist = abs(c[0]-x) + abs(c[1]-y)
+            if dist < min_dist:
+                min_dist = dist
+                cap = c
+        parsed[20] = (cap[0] - x) / (food.width*food.height)
+        parsed[21] = (cap[1] - y) / (food.width*food.height)
 
         return parsed.cuda()
 
-def check_food(parsed, x, y, food):
-    result = [0,0,0,0]
-    yf, found = y, False
-    while yf < food.height and not found:
-        for xf in range(food.width):
-            if food[xf][yf]:
-                result[0] = 1
-                found = True
-                break
-        yf += 1
-    xf, found = x, False
-    while xf < food.width and not found:
-        for yf in range(food.height):
-            if food[xf][yf]:
-                result[1] = 1
-                found = True
-                break
-        xf += 1
-    yf, found = y, False
-    while yf > 0 and not found:
-        for xf in range(food.width):
-            if food[xf][yf]:
-                result[2] = 1
-                found = True
-                break
-        yf -= 1
-    xf, found = x, False
-    while xf >= 0 and not found:
-        for yf in range(food.height):
-            if food[xf][yf]:
-                result[3] = 1
-                found = True
-                break
-        xf -= 1
-    return result
 
 def closest_food(pos, food, walls):
     fringe = [(pos[0], pos[1], 0)]
