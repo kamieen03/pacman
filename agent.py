@@ -39,7 +39,7 @@ class QAgent(Agent):
         self.net.cuda()
         self.net.eval()
         self.criterion = torch.nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.net.parameters())
+        self.optimizer = torch.optim.AdamW(self.net.parameters())
         self.memory = ReplayMemory()
         self.training = False
 
@@ -60,6 +60,9 @@ class QAgent(Agent):
             scores = self.net(state)
         scores = list(zip(ACTIONS, scores))
         legal_scores = [p for p in scores if p[0] in legal]
+        if not self.training:
+            print(state)
+            print(legal_scores)
         action = max(legal_scores, key = lambda p: p[1])[0]
 
         if self.training:
@@ -90,7 +93,14 @@ class QAgent(Agent):
         runners, names = load_runners()
 
         for epoch in range(EPOCHS):
-            EPSILON = (np.cos(epoch*2*np.pi/20)+1)/4+0.01
+            if epoch < 100:
+                EPSILON = 0.5
+            elif epoch < 150:
+                EPSILON = 0.3
+            elif epoch < 200:
+                EPSILON = 0.1
+            else:
+                EPSILON = 0.01
             print(f'Epoch {epoch} | EPSILON {EPSILON}')
             g_dict = {}
             for runner, name in zip(runners, names):
@@ -119,7 +129,7 @@ class QAgent(Agent):
         # replace deaths (None) with zeros
         for i, s in enumerate(next_states):
             if s is None:
-                next_states[i] = torch.zeros((22,)).cuda()
+                next_states[i] = torch.zeros((26,)).cuda()
         next_states = torch.stack(next_states) 
         # get max Q(s',a'); deaths get value 0
         with torch.no_grad():
