@@ -5,7 +5,7 @@ import numpy as np
 class DQN(torch.nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.linear1 = Linear(26,32)
+        self.linear1 = Linear(22,32)
         self.linear2 = Linear(32,64)
         self.linear3 = Linear(64,64)
         self.linear4 = Linear(64,32)

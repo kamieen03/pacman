@@ -54,7 +54,7 @@ class Extractor():
         walls = state.getWalls()
         capsules = state.getCapsules() 
         x, y = state.getPacmanPosition()
-        parsed = torch.zeros((26,), dtype=torch.float32)
+        parsed = torch.zeros((22,), dtype=torch.float32)
 
         # ghosts [0-11]
         for g, s in zip(ghosts, g_states):
@@ -84,10 +84,10 @@ class Extractor():
         if Directions.WEST in legals:
             parsed[19] = closest_food((x-1,y), food, walls) / (food.width*food.height)
 
-        parsed[20] = food[x][y+1] * 1
-        parsed[21] = food[x+1][y] * 1
-        parsed[22] = food[x][y-1] * 1
-        parsed[23] = food[x-1][y] * 1
+        #parsed[20] = food[x][y+1] * 1
+        #parsed[21] = food[x+1][y] * 1
+        #parsed[22] = food[x][y-1] * 1
+        #parsed[23] = food[x-1][y] * 1
         
         # closest capsule position [24-25]
         cap, min_dist = (x + food.width*food.height, y + food.width*food.height), 1e6
@@ -96,8 +96,8 @@ class Extractor():
             if dist < min_dist:
                 min_dist = dist
                 cap = c
-        parsed[24] = (cap[0] - x) / (food.width*food.height)
-        parsed[25] = (cap[1] - y) / (food.width*food.height)
+        parsed[20] = (cap[0] - x) / (food.width*food.height)
+        parsed[21] = (cap[1] - y) / (food.width*food.height)
 
         return parsed.cuda()
 

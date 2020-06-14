@@ -70,7 +70,7 @@ class QAgent(Agent):
                 action = random.choice(legal)
             if self.s is not None:
                 reward = game_state.getScore() - self.score
-                reward = process_reward(reward)
+                reward = process_reward(self.s, state, reward)
                 next_legals = game_state.getLegalActions()
                 if Directions.STOP in next_legals: next_legals.remove(Directions.STOP)
                 next_legals = (ACTION_MAP[d] for d in next_legals)
@@ -83,7 +83,7 @@ class QAgent(Agent):
     def final(self, state):
         if self.training:
             reward = state.getScore() - self.score
-            reward = process_reward(reward)
+            reward = -10
             self.memory.push(self.s, self.a, reward, None, [])
 
 
@@ -129,7 +129,7 @@ class QAgent(Agent):
         # replace deaths (None) with zeros
         for i, s in enumerate(next_states):
             if s is None:
-                next_states[i] = torch.zeros((26,)).cuda()
+                next_states[i] = torch.zeros((22,)).cuda()
         next_states = torch.stack(next_states) 
         # get max Q(s',a'); deaths get value 0
         with torch.no_grad():
@@ -167,7 +167,12 @@ class QAgent(Agent):
         game = runner.run_game(self)
 
 
-def process_reward(rew):
+def process_reward(state, next_state, rew):
+    rew = rew
+    dists = state[16:20]
+    next_dists = next_state[16:20]
+    if dists.min() != 0 and next_dists.min() < dists.min():
+        rew += 1.5
     return rew / 50.0
 
 
