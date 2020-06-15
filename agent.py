@@ -18,7 +18,7 @@ from utils import load_runners
 
 EPOCHS = 500
 GAMES_PER_EPOCH = 10
-SAMPLES_PER_GAME = 50
+SAMPLES_PER_GAME = 200
 EPSILON = 0
 GAMMA = 0.98
 
@@ -39,7 +39,7 @@ class QAgent(Agent):
         self.net.cuda()
         self.net.eval()
         self.criterion = torch.nn.MSELoss()
-        self.optimizer = torch.optim.AdamW(self.net.parameters())
+        self.optimizer = torch.optim.Adam(self.net.parameters())
         self.memory = ReplayMemory()
         self.training = False
 
@@ -93,11 +93,20 @@ class QAgent(Agent):
         runners, names = load_runners()
 
         for epoch in range(EPOCHS):
-            if epoch < 100:
+            for t in self.net.parameters():
+                for row,a in zip(t,ACTIONS):
+                    print(a)
+                    print(row[:4].data)
+                    print(row[4:8].data)
+                    print(row[8:].data)
+
+            if epoch < 10:
+                EPSILON = 0.8
+            elif epoch < 20:
                 EPSILON = 0.5
-            elif epoch < 150:
+            elif epoch < 30:
                 EPSILON = 0.3
-            elif epoch < 200:
+            elif epoch < 40:
                 EPSILON = 0.1
             else:
                 EPSILON = 0.01
@@ -129,7 +138,7 @@ class QAgent(Agent):
         # replace deaths (None) with zeros
         for i, s in enumerate(next_states):
             if s is None:
-                next_states[i] = torch.zeros((22,)).cuda()
+                next_states[i] = torch.zeros((12,)).cuda()
         next_states = torch.stack(next_states) 
         # get max Q(s',a'); deaths get value 0
         with torch.no_grad():
@@ -169,10 +178,10 @@ class QAgent(Agent):
 
 def process_reward(state, next_state, rew):
     rew = rew
-    dists = state[16:20]
-    next_dists = next_state[16:20]
+    dists = state[8:12]
+    next_dists = next_state[8:12]
     if dists.min() != 0 and next_dists.min() < dists.min():
-        rew += 1.5
+        rew += 2
     return rew / 50.0
 
 

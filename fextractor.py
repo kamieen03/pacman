@@ -21,14 +21,6 @@ ghost_1
 ghost_2
 ghost_3
 ghost_4
-ghost_5
-ghost_6
-ghost_7
-ghost_8
-ghost_9
-ghost_10
-ghost_11
-ghost_12
 wall_north        bool: wall directly north
 wall_east         bool: wall directly east
 wall_south        bool: wall directly south
@@ -37,14 +29,11 @@ dist_food_north        bool: food north
 dist_food_east         bool: food east
 dist_food_south        bool: food south
 dist_food_west         bool: food west
-food_north        bool: food north
-food_east         bool: food east
-food_south        bool: food south
-food_west         bool: food west
-capsule_x_vec
-capsule_y_vec
+capsule_north
+capsule_east
+capsule_south
+capsule_west
 '''
-ghost_positions = [(1,1),(1,0),(1,-1),(0,-1),(-1,-1),(-1,0),(-1,1),(0,1),(0,2),(0,-2),(2,0),(-2,0)]
 
 class Extractor():
 
@@ -54,50 +43,54 @@ class Extractor():
         walls = state.getWalls()
         capsules = state.getCapsules() 
         x, y = state.getPacmanPosition()
-        parsed = torch.zeros((22,), dtype=torch.float32)
+        parsed = torch.zeros((12,), dtype=torch.float32)
 
-        # ghosts [0-11]
+        # ghosts [0-3]
         for g, s in zip(ghosts, g_states):
+            dist = abs(g[0]-x) + abs(g[1]-y)
+            v = -1
             if s.scaredTimer != 0:
                 v = 1
-            else:
-                v = -1
-            for idx, gp in enumerate(ghost_positions):
-                if (g[0]-x,g[1]-y) == gp:
-                    parsed[idx] = v
+            if dist <= 2:
+                if g[1] > y:
+                    parsed[0] = v
+                if g[0] > x:
+                    parsed[1] = v
+                if y > g[1]:
+                    parsed[2] = v
+                if x > g[0]:
+                    parsed[3] = v
 
-        # walls [12-15]
-        for idx, (dx, dy) in enumerate([(0,1), (1,0), (0,-1), (-1,0)]):
-            if walls[x+dx][y+dy]:
-                parsed[idx+12] = 1
+        # walls [4-7]
+#        for idx, (dx, dy) in enumerate([(0,1), (1,0), (0,-1), (-1,0)]):
+#            if walls[x+dx][y+dy]:
+#                parsed[idx+4] = 1
 
-        # food position [16-19]
-        for idx in range(16,20):
+        # food position [8-11]
+        for idx in range(4,8):
             parsed[idx] = 1     #max dist
         legals = state.getLegalActions()
         if Directions.NORTH in legals:
-            parsed[16] = closest_food((x,y+1), food, walls) / (food.width*food.height)
+            parsed[4] = closest_food((x,y+1), food, walls) / (food.width*food.height)
         if Directions.EAST in legals:
-            parsed[17] = closest_food((x+1,y), food, walls) / (food.width*food.height)
+            parsed[5] = closest_food((x+1,y), food, walls) / (food.width*food.height)
         if Directions.SOUTH in legals:
-            parsed[18] = closest_food((x,y-1), food, walls) / (food.width*food.height)
+            parsed[6] = closest_food((x,y-1), food, walls) / (food.width*food.height)
         if Directions.WEST in legals:
-            parsed[19] = closest_food((x-1,y), food, walls) / (food.width*food.height)
+            parsed[7] = closest_food((x-1,y), food, walls) / (food.width*food.height)
 
-        #parsed[20] = food[x][y+1] * 1
-        #parsed[21] = food[x+1][y] * 1
-        #parsed[22] = food[x][y-1] * 1
-        #parsed[23] = food[x-1][y] * 1
-        
-        # closest capsule position [24-25]
-        cap, min_dist = (x + food.width*food.height, y + food.width*food.height), 1e6
+        # closest capsule position [12-15]
         for c in capsules:
             dist = abs(c[0]-x) + abs(c[1]-y)
-            if dist < min_dist:
-                min_dist = dist
-                cap = c
-        parsed[20] = (cap[0] - x) / (food.width*food.height)
-        parsed[21] = (cap[1] - y) / (food.width*food.height)
+            if dist <= 2:
+                if g[1] > y:
+                    parsed[8] = 1
+                if g[0] > x:
+                    parsed[9] = 1
+                if y > g[1]:
+                    parsed[10] = 1
+                if x > g[0]:
+                    parsed[11] = 1
 
         return parsed.cuda()
 
