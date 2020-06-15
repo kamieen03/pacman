@@ -5,13 +5,7 @@ import numpy as np
 class DQN(torch.nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.linear = Linear(12,4,bias=False)
+        self.params = torch.nn.Parameter(torch.rand(3, requires_grad = True))
     
     def forward(self, state):
-        if len(state.shape) == 1:
-            state=state.unsqueeze(0)
-
-        state = self.linear(state)
-
-        state = state.squeeze()
-        return state
+        return torch.matmul(state, self.params).squeeze()

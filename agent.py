@@ -94,19 +94,15 @@ class QAgent(Agent):
 
         for epoch in range(EPOCHS):
             for t in self.net.parameters():
-                for row,a in zip(t,ACTIONS):
-                    print(a)
-                    print(row[:4].data)
-                    print(row[4:8].data)
-                    print(row[8:].data)
+                print(t.data)
 
-            if epoch < 10:
+            if epoch < 5:
                 EPSILON = 0.8
-            elif epoch < 20:
+            elif epoch < 10:
                 EPSILON = 0.5
-            elif epoch < 30:
+            elif epoch < 15:
                 EPSILON = 0.3
-            elif epoch < 40:
+            elif epoch < 20:
                 EPSILON = 0.1
             else:
                 EPSILON = 0.01
@@ -138,7 +134,7 @@ class QAgent(Agent):
         # replace deaths (None) with zeros
         for i, s in enumerate(next_states):
             if s is None:
-                next_states[i] = torch.zeros((12,)).cuda()
+                next_states[i] = self.fex.empty()
         next_states = torch.stack(next_states) 
         # get max Q(s',a'); deaths get value 0
         with torch.no_grad():
@@ -178,8 +174,8 @@ class QAgent(Agent):
 
 def process_reward(state, next_state, rew):
     rew = rew
-    dists = state[8:12]
-    next_dists = next_state[8:12]
+    dists = state[:,1]
+    next_dists = next_state[:,1]
     if dists.min() != 0 and next_dists.min() < dists.min():
         rew += 2
     return rew / 50.0
