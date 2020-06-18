@@ -51,7 +51,7 @@ class Extractor():
         walls = state.getWalls()
         capsules = state.getCapsules() 
         x, y = state.getPacmanPosition()
-        parsed = torch.zeros((4,3), dtype=torch.float32)
+        parsed = torch.zeros((4,4), dtype=torch.float32)
         legals = state.getLegalActions()
         
         # ghosts [0th column]
@@ -96,10 +96,22 @@ class Extractor():
                 c, dist = closest_cell((x-1,y), capsules, walls)
                 parsed[3][2] = dist / (food.width*food.height)
 
+        # ghosts very close [3rd column]
+        for g, s in zip(ghosts, g_states):
+            dist = abs(g[0]-x) + abs(g[1]-y)
+            if dist <= 2:
+                if g[1] > y:
+                    parsed[0][3] = 1
+                if g[0] > x:
+                    parsed[1][3] = 1
+                if y > g[1]:
+                    parsed[2][3] = 1
+                if x > g[0]:
+                    parsed[3][3] = 1
         return parsed.cuda()
 
     def empty(self):
-        return torch.zeros((4,3), dtype=torch.float32).cuda()
+        return torch.zeros((4,4), dtype=torch.float32).cuda()
 
 
 def closest_food(pos, food, walls):

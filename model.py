@@ -5,7 +5,7 @@ import numpy as np
 class DQN(torch.nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.params = torch.nn.Parameter(torch.rand(3, requires_grad = True))
+        self.params = torch.nn.Parameter(torch.rand(4, requires_grad = True))
     
     def forward(self, state):
         return torch.matmul(state, self.params).squeeze()
