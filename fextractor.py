@@ -37,10 +37,7 @@ capsule_west
 
 
 def ghost_value(dist, walls, stimer):
-    if stimer == 0:
-        return min(-1 + 5*dist/(walls.width*walls.height), 0)
-    else:
-        return (stimer - dist)/40
+    return dist/(walls.width*walls.height)
 
 
 class Extractor():
@@ -55,18 +52,20 @@ class Extractor():
         legals = state.getLegalActions()
         
         # ghosts [0th column]
-        if ghosts:
+        parsed[:,0] = 1
+        scared_ghosts = [g for g,s in zip(ghosts, g_states) if s.scaredTimer > 2]
+        if scared_ghosts:
             if Directions.NORTH in legals:
-                g, dist = closest_cell((x,y+1), ghosts, walls)
+                g, dist = closest_cell((x,y+1), scared_ghosts, walls)
                 parsed[0][0] = ghost_value(dist, walls, gmap[g])
             if Directions.EAST in legals:
-                g, dist = closest_cell((x+1,y), ghosts, walls)
+                g, dist = closest_cell((x+1,y), scared_ghosts, walls)
                 parsed[1][0] = ghost_value(dist, walls, gmap[g])
             if Directions.SOUTH in legals:
-                g, dist = closest_cell((x,y-1), ghosts, walls)
+                g, dist = closest_cell((x,y-1), scared_ghosts, walls)
                 parsed[2][0] = ghost_value(dist, walls, gmap[g])
             if Directions.WEST in legals:
-                g, dist = closest_cell((x-1,y), ghosts, walls)
+                g, dist = closest_cell((x-1,y), scared_ghosts, walls)
                 parsed[3][0] = ghost_value(dist, walls, gmap[g])
 
         # food distance [1st column]
@@ -99,15 +98,18 @@ class Extractor():
         # ghosts very close [3rd column]
         for g, s in zip(ghosts, g_states):
             dist = abs(g[0]-x) + abs(g[1]-y)
+            v = -1
+            if s.scaredTimer > 2:
+                v = 1
             if dist <= 2:
                 if g[1] > y:
-                    parsed[0][3] = 1
+                    parsed[0][3] = v
                 if g[0] > x:
-                    parsed[1][3] = 1
+                    parsed[1][3] = v
                 if y > g[1]:
-                    parsed[2][3] = 1
+                    parsed[2][3] = v
                 if x > g[0]:
-                    parsed[3][3] = 1
+                    parsed[3][3] = v
         return parsed.cuda()
 
     def empty(self):
@@ -155,3 +157,4 @@ def closest_cell(pos, cells, walls):
 
 
         
+
