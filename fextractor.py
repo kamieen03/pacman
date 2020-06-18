@@ -35,36 +35,42 @@ capsule_south
 capsule_west
 '''
 
+
+def ghost_value(dist, walls, stimer):
+    if stimer == 0:
+        return min(-1 + 5*dist/(walls.width*walls.height), 0)
+    else:
+        return (stimer - dist)/40
+
+
 class Extractor():
     def __call__(self, state):
         ghosts, g_states = state.getGhostPositions(), state.getGhostStates()
+        gmap = {g: s.scaredTimer for g,s in zip(ghosts, g_states)}
         food = state.getFood()
         walls = state.getWalls()
         capsules = state.getCapsules() 
         x, y = state.getPacmanPosition()
         parsed = torch.zeros((4,3), dtype=torch.float32)
-
+        legals = state.getLegalActions()
+        
         # ghosts [0th column]
-        for g, s in zip(ghosts, g_states):
-            g = (int(g[0]), int(g[1]))
-            dist = cell_dist((x,y), g, walls)
-            if s.scaredTimer == 0:
-                v = -1 + dist/(food.width*food.height)
-            elif s.scaredTimer != 0:
-                v = (s.scaredTimer-dist)/40
-
-            if g[1] > y:
-                parsed[0][0] = v
-            if g[0] > x:
-                parsed[1][0] = v
-            if y > g[1]:
-                parsed[2][0] = v
-            if x > g[0]:
-                parsed[3][0] = v
+        if ghosts:
+            if Directions.NORTH in legals:
+                g, dist = closest_cell((x,y+1), ghosts, walls)
+                parsed[0][0] = ghost_value(dist, walls, gmap[g])
+            if Directions.EAST in legals:
+                g, dist = closest_cell((x+1,y), ghosts, walls)
+                parsed[1][0] = ghost_value(dist, walls, gmap[g])
+            if Directions.SOUTH in legals:
+                g, dist = closest_cell((x,y-1), ghosts, walls)
+                parsed[2][0] = ghost_value(dist, walls, gmap[g])
+            if Directions.WEST in legals:
+                g, dist = closest_cell((x-1,y), ghosts, walls)
+                parsed[3][0] = ghost_value(dist, walls, gmap[g])
 
         # food distance [1st column]
         parsed[:,1] = 1     #max dist
-        legals = state.getLegalActions()
         if Directions.NORTH in legals:
             parsed[0][1] = closest_food((x,y+1), food, walls) / (food.width*food.height)
         if Directions.EAST in legals:
@@ -75,16 +81,20 @@ class Extractor():
             parsed[3][1] = closest_food((x-1,y), food, walls) / (food.width*food.height)
 
         # capsule distance [2nd column]
-        for c in capsules:
-            dist = cell_dist((x,y), c, walls) / (walls.width * walls.height)
-            if c[1] > y:
-                parsed[0][2] = dist
-            if c[0] > x:
-                parsed[1][2] = dist
-            if y > c[1]:
-                parsed[2][2] = dist
-            if x > c[0]:
-                parsed[3][2] = dist
+        parsed[:,2] = 1     #max dist
+        if capsules:
+            if Directions.NORTH in legals:
+                c, dist = closest_cell((x,y+1), capsules, walls)
+                parsed[0][2] = dist / (food.width*food.height)
+            if Directions.EAST in legals:
+                c, dist = closest_cell((x+1,y), capsules, walls)
+                parsed[1][2] = dist / (food.width*food.height)
+            if Directions.SOUTH in legals:
+                c, dist = closest_cell((x,y-1), capsules, walls)
+                parsed[2][2] = dist / (food.width*food.height)
+            if Directions.WEST in legals:
+                c, dist = closest_cell((x-1,y), capsules, walls)
+                parsed[3][2] = dist / (food.width*food.height)
 
         return parsed.cuda()
 
@@ -110,7 +120,8 @@ def closest_food(pos, food, walls):
     # no food found
     return None
 
-def cell_dist(pos, cell, walls):
+def closest_cell(pos, cells, walls):
+    dists = {c: -1 for c in cells}
     fringe = [(pos[0], pos[1], 0)]
     expanded = set()
     while fringe:
@@ -118,12 +129,15 @@ def cell_dist(pos, cell, walls):
         if (pos_x, pos_y) in expanded:
             continue
         expanded.add((pos_x, pos_y))
-        if pos_x == cell[0] and pos_y == cell[1]: 
-            return dist
+        if (pos_x,pos_y) in cells:
+            if dists[(pos_x,pos_y)] == -1:
+                dists[(pos_x,pos_y)] = dist
+            if all([v != -1 for v in dists.values()]):
+                break
         nbrs = Actions.getLegalNeighbors((pos_x, pos_y), walls)
         for nbr_x, nbr_y in nbrs:
             fringe.append((nbr_x, nbr_y, dist + 1))
-    raise Exception("Cell not found!")
+    return min(list(dists.items()), key = lambda cd: cd[1])
 
 
 
