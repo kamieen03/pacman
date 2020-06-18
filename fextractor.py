@@ -46,14 +46,12 @@ class Extractor():
 
         # ghosts [0th column]
         for g, s in zip(ghosts, g_states):
-            dist = abs(x-g[0])+abs(y-g[1])
-            if s.scaredTimer == 0 and dist <= 2:
-                v = -1
+            g = (int(g[0]), int(g[1]))
+            dist = cell_dist((x,y), g, walls)
+            if s.scaredTimer == 0:
+                v = -1 + dist/(food.width*food.height)
             elif s.scaredTimer != 0:
-                dist = cell_dist((x,y), g, walls)
                 v = (s.scaredTimer-dist)/40
-            else:
-                v = 0
 
             if g[1] > y:
                 parsed[0][0] = v

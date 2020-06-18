@@ -62,6 +62,7 @@ class QAgent(Agent):
         legal_scores = [p for p in scores if p[0] in legal]
         if not self.training:
             print(state)
+            for t in self.net.parameters(): print(t.data)
             print(legal_scores)
         action = max(legal_scores, key = lambda p: p[1])[0]
 
@@ -95,19 +96,11 @@ class QAgent(Agent):
         for epoch in range(EPOCHS):
             for t in self.net.parameters():
                 print(t.data)
-
-            if epoch < 5:
-                EPSILON = 0.8
-            elif epoch < 10:
-                EPSILON = 0.5
-            elif epoch < 15:
-                EPSILON = 0.3
-            elif epoch < 20:
-                EPSILON = 0.1
-            else:
-                EPSILON = 0.01
+            if epoch <= 4:
+                EPSILON = [0.8, 0.5, 0.3, 0.1, 0.01][epoch]
             print(f'Epoch {epoch} | EPSILON {EPSILON}')
             g_dict = {}
+
             for runner, name in zip(runners, names):
                 games = []
                 for game_idx in range(GAMES_PER_EPOCH):
@@ -178,6 +171,11 @@ def process_reward(state, next_state, rew):
     next_dists = next_state[:,1]
     if dists.min() != 0 and next_dists.min() < dists.min():
         rew += 2
+    else:
+        dists = state[:,2]
+        next_dists = next_state[:,2]
+        if dists.min() != 0 and next_dists.min() < dists.min():
+            rew += 2
     return rew / 50.0
 
 
