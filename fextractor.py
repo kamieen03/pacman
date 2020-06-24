@@ -16,26 +16,6 @@ import torch
 from misio.pacman.game import Actions
 from misio.pacman.game import Directions
 
-'''
-ghost_1
-ghost_2
-ghost_3
-ghost_4
-wall_north        bool: wall directly north
-wall_east         bool: wall directly east
-wall_south        bool: wall directly south
-wall_west         bool: wall directly west
-dist_food_north        bool: food north
-dist_food_east         bool: food east
-dist_food_south        bool: food south
-dist_food_west         bool: food west
-capsule_north
-capsule_east
-capsule_south
-capsule_west
-'''
-
-
 def ghost_value(dist, walls, stimer):
     return dist/(walls.width*walls.height)
 
@@ -110,7 +90,7 @@ class Extractor():
                     parsed[2][3] = v
                 if x > g[0]:
                     parsed[3][3] = v
-        return parsed.cuda()
+        return parsed
 
     def empty(self):
         return torch.zeros((4,4), dtype=torch.float32).cuda()

@@ -12,7 +12,7 @@ def load_runners():
                                            random_ghosts=rg,
                                            frame_time=0)
             runners.append(runner)
-            names.append(p.split('/')[1] + f'__random_ghosts={rg}')
+            names.append(p.split('/')[1] + '__random_ghosts={}'.format(rg))
     assert len(runners) == len(names)
     return runners, names
 

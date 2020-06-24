@@ -10,13 +10,14 @@ from misio.pacman.keyboardAgents import KeyboardAgent
 from misio.pacman.pacman import LocalPacmanGameRunner
 from misio.pacman.game import Directions
 from misio.pacman.pacman import LocalPacmanGameRunner
+from misio.optilio.pacman import StdIOPacmanRunner
 
 from fextractor import Extractor
 from model import DQN
 from memory import ReplayMemory
 from utils import load_runners
 
-EPOCHS = 500
+EPOCHS = 10
 GAMES_PER_EPOCH = 10
 SAMPLES_PER_GAME = 200
 EPSILON = 0
@@ -33,10 +34,10 @@ class QAgent(Agent):
         self.fex = Extractor()
         self.net = DQN()
         try:
-            self.net.load_state_dict(torch.load('model.pth'))
+            self.net.load_state_dict(torch.load('model.pth', map_location=torch.device('cpu')))
         except:
             print("Starting with new weights")
-        self.net.cuda()
+            raise Exception("Weights not found")
         self.net.eval()
         self.criterion = torch.nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.net.parameters())
@@ -56,14 +57,12 @@ class QAgent(Agent):
         legal = game_state.getLegalPacmanActions()
         if Directions.STOP in legal: legal.remove(Directions.STOP)
         state = self.fex(game_state)
+        if self.training:
+            state = state.cuda()
         with torch.no_grad():
             scores = self.net(state)
         scores = list(zip(ACTIONS, scores))
         legal_scores = [p for p in scores if p[0] in legal]
-        if not self.training:
-            print(state)
-            for t in self.net.parameters(): print(t.data)
-            print(legal_scores)
         action = max(legal_scores, key = lambda p: p[1])[0]
 
         if self.training:
@@ -91,6 +90,7 @@ class QAgent(Agent):
     def train(self):
         global EPSILON
         self.training = True
+        self.net.cuda()
         runners, names = load_runners()
 
         for epoch in range(EPOCHS):
@@ -98,7 +98,7 @@ class QAgent(Agent):
                 print(t.data)
             if epoch <= 4:
                 EPSILON = [0.8, 0.5, 0.3, 0.1, 0.01][epoch]
-            print(f'Epoch {epoch} | EPSILON {EPSILON}')
+            print('Epoch {} | EPSILON {}'.format(epoch, EPSILON))
             g_dict = {}
 
             for runner, name in zip(runners, names):
@@ -111,7 +111,8 @@ class QAgent(Agent):
 
                 avg = np.mean([game.state.getScore() for game in games])
                 wins = sum([game.state.isWin() for game in games])
-                print(f'{name}: {avg:0.2f} | {wins}/{GAMES_PER_EPOCH}')
+                #print(f'{name}: {avg:0.2f} | {wins}/{GAMES_PER_EPOCH}')
+                print('{}: {} | {}/{}'.format(name,avg, wins, GAMES_PER_EPOCH))
             print()
             torch.save(self.net.state_dict(), 'model.pth')
 
@@ -181,10 +182,16 @@ def process_reward(state, next_state, rew):
 
 def main():
     agent = QAgent()
-    if sys.argv[1] in ['t', 'train', '-t', '--train']:
-        agent.train()
+    if len(sys.argv) > 1 and sys.argv[1] == '-t':
+            agent.train()
+        #else:
+        #    agent.play(sys.argv[1])
     else:
-        agent.play(sys.argv[1])
+        runner = StdIOPacmanRunner()
+        games_num = int(input())
+
+        for _ in range(games_num):
+            runner.run_game(agent)
 
 
 if __name__ == '__main__':
